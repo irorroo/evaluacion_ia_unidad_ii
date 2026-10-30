@@ -31,7 +31,7 @@ from src.model import CNN, count_parameters
 # ----------------------------------------------------------------------
 # Hiperparámetros
 # ----------------------------------------------------------------------
-EPOCHS = 8         # número de pasadas completas por el set de entrenamiento
+EPOCHS = 15            # número de pasadas completas por el set de entrenamiento
 BATCH_SIZE = 128       # imágenes por lote
 LEARNING_RATE = 1e-3   # tasa de aprendizaje de Adam
 
