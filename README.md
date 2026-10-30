@@ -86,16 +86,43 @@ Tres bloques convolucionales (`Conv2d` → `ReLU` → `MaxPool2d`) seguidos de u
 
 ## 6. Resultados (Pregunta 4)
 
-> **COMPLETAR** con los valores reales impresos en consola al ejecutar `python src/train.py`.
+Resultados obtenidos al ejecutar `python src/train.py` en CPU (semilla 68, 15 épocas, batch 128, Adam con lr = 1e-3, aprox. 200 s por época):
 
 | Métrica | Valor |
 |---|---|
-| Train accuracy (última época) | `[COMPLETAR]` |
-| Validación accuracy (última época) | `[COMPLETAR]` |
-| Mejor validación accuracy | `[COMPLETAR]` |
-| Test accuracy | `[COMPLETAR]` |
-| Test loss | `[COMPLETAR]` |
-| Brecha train − validación | `[COMPLETAR]` |
+| Train accuracy (época 15) | 0,7543 |
+| Validación accuracy (época 15) | 0,7810 |
+| Mejor validación accuracy | 0,7810 (época 15) |
+| Train loss (época 15) | 0,7141 |
+| Validación loss (época 15) | 0,6212 |
+| **Test accuracy** | **0,7740** |
+| **Test loss** | **0,6471** |
+| Brecha train − validación (accuracy) | −0,0267 |
+
+**Evolución del entrenamiento:**
+
+| Época | Train loss | Train acc | Val loss | Val acc |
+|---|---|---|---|---|
+| 1 | 1,7112 | 0,3655 | 1,3920 | 0,4924 |
+| 5 | 1,0073 | 0,6472 | 0,8543 | 0,6918 |
+| 10 | 0,8052 | 0,7201 | 0,6794 | 0,7596 |
+| 15 | 0,7141 | 0,7543 | 0,6212 | 0,7810 |
+
+**Métricas por clase (test, 1 000 imágenes por clase):**
+
+| Clase | Precision | Recall | F1-score |
+|---|---|---|---|
+| airplane | 0,752 | 0,821 | 0,785 |
+| automobile | 0,924 | 0,837 | 0,878 |
+| bird | 0,774 | 0,588 | 0,668 |
+| cat | 0,622 | 0,586 | 0,604 |
+| deer | 0,768 | 0,729 | 0,748 |
+| dog | 0,688 | 0,684 | 0,686 |
+| frog | 0,760 | 0,873 | 0,813 |
+| horse | 0,827 | 0,828 | 0,828 |
+| ship | 0,842 | 0,887 | 0,864 |
+| truck | 0,785 | 0,907 | 0,842 |
+| **Promedio macro** | 0,774 | 0,774 | 0,772 |
 
 **Curvas de aprendizaje:**
 
@@ -111,10 +138,29 @@ Tres bloques convolucionales (`Conv2d` → `ReLU` → `MaxPool2d`) seguidos de u
 
 ## 7. Análisis crítico (Pregunta 4.4)
 
-> **COMPLETAR** con tus números reales. Guía de interpretación:
->
-> - **Overfitting:** el accuracy de train sigue subiendo mientras el de validación se estanca o baja, y el loss de validación empieza a subir. Una brecha train − validación grande (por ejemplo, más de 5–10 puntos porcentuales) es síntoma de sobreajuste.
-> - **Underfitting:** train y validación tienen accuracy bajo y parecido, y el loss sigue alto o aún bajando al terminar. Indica que el modelo no tiene capacidad suficiente o necesita más épocas.
-> - **Buen ajuste:** ambos accuracy son altos y cercanos, y el test accuracy es similar al de validación.
->
-> Redacta: (1) los valores numéricos de brecha y test accuracy, (2) tu conclusión (overfitting / underfitting / ajuste razonable) justificada con esas cifras, (3) qué clases se confunden más según la matriz (en CIFAR-10 suelen ser *cat* ↔ *dog*) y (4) qué mejorarías (más épocas, BatchNorm, más augmentation, scheduler del learning rate).
+### 7.1 Diagnóstico: no hay overfitting
+
+Con la semilla 68, el modelo **no muestra síntomas de sobreajuste**, por tres evidencias cuantitativas:
+
+1. **La brecha train − validación es negativa (−2,67 puntos porcentuales).** En overfitting la brecha es positiva y crece con las épocas (el train mejora y la validación se estanca). Aquí la validación (78,10 %) supera al train (75,43 %).
+2. **El loss de validación baja de forma sostenida**, de 1,3920 a 0,6212 (−55 %), junto con el de train (1,7112 a 0,7141). Solo hay oscilaciones menores (menos de 0,02) en las épocas 6, 8 y 14, y ninguna tendencia al alza. Además, el mínimo de val loss se alcanza en la última época.
+3. **El test accuracy (77,40 %) es casi idéntico al de validación (78,10 %)**: solo 0,70 puntos de diferencia. El modelo generaliza a datos nunca vistos en la misma medida que a la validación.
+
+**¿Por qué la validación supera al train?** Porque las métricas de train se acumulan durante la época mientras los pesos aún mejoran, con `Dropout(0,5)` activo y con Data Augmentation (`RandomCrop` + `RandomHorizontalFlip`), que hace más difíciles las imágenes de entrenamiento. La validación se mide al final de cada época, con el modelo en `eval()` (sin Dropout) y sin augmentation. Es un comportamiento esperado con regularización fuerte, no un error.
+
+### 7.2 Underfitting leve: el modelo aún no converge
+
+El train accuracy final (75,43 %) es moderado y las curvas **siguen mejorando al terminar la época 15**: la validación alcanza su mejor valor justo en la última época (0,7810) y no hay meseta. Esto indica un **subajuste leve por falta de entrenamiento** (más que por falta de capacidad): el modelo aún tiene margen para aprender. Por tanto, el diagnóstico global es un **ajuste razonable, sin sobreajuste y con margen de mejora**.
+
+### 7.3 Análisis por clase
+
+- **Mejor desempeño:** *automobile* (F1 = 0,878, precision 0,924), *ship* (0,864) y *truck* (0,842). Son objetos con formas rígidas y distintivas.
+- **Peor desempeño:** *cat* (F1 = 0,604), *bird* (0,668, recall de solo 0,588) y *dog* (0,686). Son animales con texturas, colores y fondos parecidos entre sí, lo que provoca que muchas de sus imágenes caigan fuera de la diagonal de la matriz de confusión (por ejemplo, el 41,4 % de los gatos no es reconocido como gato).
+
+### 7.4 Mejoras propuestas
+
+- Entrenar más épocas (30 a 50) y conservar el mejor modelo según la validación, ya implementado con `best_model.pt`.
+- Añadir `BatchNorm2d` tras cada convolución para acelerar y estabilizar la convergencia.
+- Usar un *scheduler* de tasa de aprendizaje (por ejemplo `StepLR` o `CosineAnnealingLR`).
+- Ampliar la capacidad con bloques convolucionales dobles (dos `Conv2d` antes de cada `MaxPool2d`).
+- Entrenar en GPU para reducir el tiempo (en CPU cada época tardó unos 200 s).
